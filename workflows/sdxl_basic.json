@@ -1,0 +1,68 @@
+{
+  "workflow_name": "Simple SDXL Generation",
+  "description": "Basic SDXL text-to-image workflow",
+  "nodes": {
+    "checkpoint_loader": {
+      "id": 9,
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+      }
+    },
+    "positive_prompt": {
+      "id": 3,
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{{prompt}}",
+        "clip": ["9", 0]
+      }
+    },
+    "negative_prompt": {
+      "id": 4,
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "low quality, blurry, distorted, ugly, bad anatomy",
+        "clip": ["9", 0]
+      }
+    },
+    "empty_latent": {
+      "id": 11,
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "sampler": {
+      "id": 10,
+      "class_type": "KSampler",
+      "inputs": {
+        "noise_seed": 42,
+        "steps": 20,
+        "cfg": 7.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "positive": ["3", 0],
+        "negative": ["4", 0],
+        "latent_image": ["11", 0]
+      }
+    },
+    "vae_decode": {
+      "id": 6,
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["10", 0],
+        "model": ["9", 1]
+      }
+    },
+    "save_image": {
+      "id": 8,
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "SDXL_Output",
+        "images": ["6", 0]
+      }
+    }
+  }
+}
