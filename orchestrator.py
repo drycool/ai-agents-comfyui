@@ -146,8 +146,8 @@ Return ONLY valid JSON, no other text."""
         return create_simple_sdxl_workflow(
             prompt=prompt,
             negative_prompt=negative_prompt or "",
-            width=kwargs.get("width", 1024),
-            height=kwargs.get("height", 1024),
+            width=kwargs.get("width", 512),
+            height=kwargs.get("height", 512),
             steps=kwargs.get("steps", 20),
             cfg=kwargs.get("cfg", 7.0),
             seed=kwargs.get("seed")
