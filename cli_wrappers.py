@@ -8,6 +8,7 @@ This module provides wrapper functions for calling:
 import subprocess
 import json
 import os
+import sys
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,7 +21,12 @@ OLLAMA_DEFAULT_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "llama3.3")
 OLLAMA_ORCHESTRATOR_MODEL = os.getenv("OLLAMA_ORCHESTRATOR_MODEL", "llama3.3")
 OLLAMA_LIGHT_MODEL = os.getenv("OLLAMA_LIGHT_MODEL", "phi4")
 CLAUDE_CLI_PATH = os.getenv("CLAUDE_CLI_PATH", "claude")
-GEMINI_CLI_PATH = os.getenv("GEMINI_CLI_PATH", "gemini")
+
+# Gemini CLI path - use .cmd on Windows
+if sys.platform == "win32":
+    GEMINI_CLI_PATH = os.getenv("GEMINI_CLI_PATH", "gemini.cmd")
+else:
+    GEMINI_CLI_PATH = os.getenv("GEMINI_CLI_PATH", "gemini")
 
 
 class OllamaWrapper:
@@ -293,14 +299,11 @@ class GeminiWrapper:
         Returns:
             Gemini's response as string
         """
-        # Build command - exact syntax depends on Gemini CLI version
-        cmd = [GEMINI_CLI_PATH]
+        # Build command - use -p for headless mode
+        cmd = [GEMINI_CLI_PATH, "-p"]
 
-        # Try different argument patterns
-        cmd.extend([
-            "--model", model,
-            "--temperature", str(temperature)
-        ])
+        if model:
+            cmd.extend(["-m", model])
 
         cmd.append(prompt)
 
@@ -393,6 +396,50 @@ Keep response concise (3-4 sentences)."""
                 timeout=10
             )
             return result.returncode == 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def enhance_prompt(base_prompt: str, style: str = None) -> str:
+        """
+        Enhance a prompt for image generation using Gemini.
+
+        Args:
+            base_prompt: Original prompt
+            style: Optional style description
+
+        Returns:
+            Enhanced prompt
+        """
+        style_hint = ""
+        if style:
+            style_hint = f"\nStyle: {style}"
+
+        prompt = f"""Improve this prompt for AI image generation (ComfyUI/SDXL).
+Add details about: lighting, composition, colors, atmosphere, mood.
+Keep it descriptive but concise.{style_hint}
+
+Original prompt: {base_prompt}
+
+Return only the improved prompt, nothing else."""
+
+        return GeminiWrapper.run(prompt)
+
+    @staticmethod
+    def is_authenticated() -> bool:
+        """Check if Gemini CLI is authenticated with Google account."""
+        try:
+            result = subprocess.run(
+                [GEMINI_CLI_PATH, "-p", "test"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                encoding='utf-8',
+                errors='replace'
+            )
+            # If not authenticated, it will show auth error or prompt
+            output = result.stdout + result.stderr
+            return "login" not in output.lower() and "sign in" not in output.lower()
         except Exception:
             return False
 
