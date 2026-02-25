@@ -32,10 +32,13 @@ python launcher.py --list-models
 ### Запуск web-интерфейса
 ```bash
 # Установить зависимости
-pip install streamlit opencv-python rawpy
+pip install -r requirements.txt
 
 # Запустить web-интерфейс
 streamlit run app.py
+
+# Или использовать батник
+run_app.bat
 ```
 
 ### Требования окружения
