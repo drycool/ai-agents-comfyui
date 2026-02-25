@@ -38,31 +38,13 @@ DEFAULT_JPEG_QUALITY = 80  # ~80% gives 2-3 MB for 2160x2700
 class InstagramProcessor:
     """Процессор фото для Instagram винтажной одежды."""
 
-    # Пресет магазина (оптимизированные параметры Photoshop)
+    # Пресет магазина - простая обработка
     SHOP_PRESET = {
-        # Коррекция (Light) - оптимизировано для визуально приятного результата
-        "exposure": 0.5,         # Мягкое увеличение экспозиции
-        "highlights": -30,      # Мягкое снижение светов
-        "shadows": 30,          # Мягкое усиление теней
-        "blacks": -15,          # Мягкое уменьшение чёрных
-        "texture": 10,          # Детализация
-        "clarity": 15,          # Чёткость
-        "dehaze": 10,           # Устранение дымки
-
-        # Цвет (Color)
-        "temperature": 5500,    # Температура в K (тёплый оттенок)
-        "tint": 3,              # Лёгкий зелёный оттенок
-        # Color Grading (теплые тона)
-        "color_grading_highlights_hue": 45,
-        "color_grading_highlights_sat": 4,
-        "color_grading_midtones_hue": 45,
-        "color_grading_midtones_sat": 3,
-        "color_grading_shadows_hue": 35,
-        "color_grading_shadows_sat": 5,
-        # Vibrance/Saturation (0 = без изменений)
-        "vibrance": 0,
-        "saturation": 0,
-
+        # Базовая коррекция
+        "brightness": 10,        # Осветление
+        "contrast": 1.15,        # 15% контраст
+        # Тёплый винтаж
+        "temperature": 5800,    # Тёплый оттенок
         # Кадрирование
         "vertical_offset_percent": 0.0,
     }
@@ -102,37 +84,69 @@ class InstagramProcessor:
         return Image.fromarray(rgb_8)
 
     def _auto_fix_dark_edges(self, img: Image.Image) -> Image.Image:
-        """Автоматически обнаружить и исправить тёмные края."""
-        if not CV2_AVAILABLE:
-            return img
-
+        """Автоматически обрезать лишнее пространство вокруг объекта."""
         img_array = np.array(img)
         h, w = img_array.shape[:2]
 
-        brightness_per_col = img_array.mean(axis=(0, 2))
-        avg_brightness = brightness_per_col.mean()
-        threshold = avg_brightness * 0.5
+        # Пробуем с OpenCV
+        if CV2_AVAILABLE:
+            try:
+                gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+                blur = cv2.GaussianBlur(gray, (9, 9), 0)
+                _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        dark_left = 0
-        dark_right = 0
+                if contours:
+                    largest = max(contours, key=cv2.contourArea)
+                    x, y, cw, ch = cv2.boundingRect(largest)
+                    margin_x = int(cw * 0.05)
+                    margin_y = int(ch * 0.05)
 
-        for i in range(min(w // 10, 150)):
-            if brightness_per_col[i] < threshold:
-                dark_left = i + 1
-            else:
+                    new_x = max(0, x - margin_x)
+                    new_y = max(0, y - margin_y)
+                    new_w = min(w - new_x, cw + margin_x * 2)
+                    new_h = min(h - new_y, ch + margin_y * 2)
+
+                    if new_w > w * 0.3 and new_h > h * 0.3:
+                        img_array = img_array[new_y:new_y+new_h, new_x:new_x+new_w]
+                        return Image.fromarray(img_array)
+            except Exception:
+                pass
+
+        # Запасной вариант - анализ яркости
+        gray = np.mean(img_array, axis=2)
+        brightness_per_row = gray.mean(axis=1)
+        brightness_per_col = gray.mean(axis=0)
+        avg = brightness_per_row.mean()
+
+        # Находим границы где яркость резко меняется
+        top = 0
+        for i in range(h):
+            if brightness_per_row[i] < avg * 0.5:
+                top = i
                 break
 
-        for i in range(w - 1, max(w - w // 10 - 1, w - 151), -1):
-            if brightness_per_col[i] < threshold:
-                dark_right = w - i
-            else:
+        bottom = h
+        for i in range(h - 1, -1, -1):
+            if brightness_per_row[i] < avg * 0.5:
+                bottom = i + 1
                 break
 
-        if dark_left > 10 or dark_right > 10:
-            new_left = dark_left
-            new_right = w - dark_right
-            if new_left < new_right and (new_right - new_left) > w * 0.5:
-                img_array = img_array[:, new_left:new_right]
+        left = 0
+        for i in range(w):
+            if brightness_per_col[i] < avg * 0.5:
+                left = i
+                break
+
+        right = w
+        for i in range(w - 1, -1, -1):
+            if brightness_per_col[i] < avg * 0.5:
+                right = i + 1
+                break
+
+        # Если есть что обрезать
+        if (right - left) > w * 0.4 and (bottom - top) > h * 0.4:
+            img_array = img_array[top:bottom, left:right]
 
         return Image.fromarray(img_array)
 
@@ -173,33 +187,25 @@ class InstagramProcessor:
         """Применить коррекцию светов, теней и чёрных."""
         img_array = np.array(img).astype(np.float32)
 
-        # Разделяем на каналы
         if len(img_array.shape) == 3:
-            # Для каждого пикселя вычисляем яркость
-            luminance = 0.299 * img_array[:, :, 0] + 0.587 * img_array[:, :, 1] + 0.114 * img_array[:, :, 2]
+            # Упрощённая коррекция - применяем ко всему изображению
+            # с мягким коэффициентом
+            factor = 0.3  # Мягкий коэффициент
 
-            # Маски для светов и теней
-            highlight_mask = np.clip(luminance / 255, 0, 1)
-            shadow_mask = 1 - highlight_mask
-
-            # Highlights: снижение (от -100 до +100)
+            # Highlights: снижение ярких областей
             if highlights != 0:
-                highlight_adjustment = highlights / 100.0
-                img_array[:, :, 0] -= highlight_mask * highlight_adjustment * 255 * 0.5
-                img_array[:, :, 1] -= highlight_mask * highlight_adjustment * 255 * 0.5
-                img_array[:, :, 2] -= highlight_mask * highlight_adjustment * 255 * 0.5
+                adjustment = highlights / 100.0 * factor
+                img_array = img_array * (1 - adjustment * 0.3)
 
-            # Shadows: усиление (от -100 до +100)
+            # Shadows: усиление тёмных областей
             if shadows != 0:
-                shadow_adjustment = shadows / 100.0
-                img_array[:, :, 0] += shadow_mask * shadow_adjustment * 255 * 0.5
-                img_array[:, :, 1] += shadow_mask * shadow_adjustment * 255 * 0.5
-                img_array[:, :, 2] += shadow_mask * shadow_adjustment * 255 * 0.5
+                adjustment = shadows / 100.0 * factor
+                img_array = img_array * (1 + adjustment * 0.3)
 
-            # Blacks: сдвиг чёрных (от -100 до +100)
+            # Blacks: сдвиг уровня чёрного
             if blacks != 0:
-                blacks_adjustment = blacks / 100.0 * 50  # Менее агрессивно
-                img_array = img_array - blacks_adjustment
+                adjustment = blacks / 100.0 * 20
+                img_array = img_array - adjustment
 
         img_array = np.clip(img_array, 0, 255)
         return Image.fromarray(img_array.astype(np.uint8))
@@ -312,7 +318,12 @@ class InstagramProcessor:
         center_crop: bool = True,
         vertical_offset_percent: float = 0.0,
         auto_fix_edges: bool = True,
-        output_filename: Optional[str] = None
+        output_filename: Optional[str] = None,
+        # Параметры коррекции (могут быть переопределены из UI)
+        brightness: Optional[int] = None,
+        contrast: Optional[float] = None,
+        saturation: Optional[float] = None,
+        temperature: Optional[int] = None
     ) -> Dict[str, Any]:
         """Обработать изображение для Instagram."""
         start_time = datetime.now()
@@ -332,43 +343,52 @@ class InstagramProcessor:
 
         # Center crop to 4:5
         if center_crop:
-            if preset == "shop_vintage" and "vertical_offset_percent" in self.SHOP_PRESET:
-                current_vertical_offset = self.SHOP_PRESET["vertical_offset_percent"]
-            else:
-                current_vertical_offset = vertical_offset_percent
+            # Всегда используем переданный vertical_offset_percent
+            current_vertical_offset = vertical_offset_percent
             img = self._center_crop_to_target(img, target_size, current_vertical_offset)
             steps.append(f"center_crop_offset_{current_vertical_offset:.1f}%")
 
-        # Apply shop preset (параметры из Photoshop)
-        if preset == "shop_vintage":
-            p = self.SHOP_PRESET
+        # Apply коррекцию - используем переданные параметры
+        # Конвертируем в numpy массив один раз
+        img_array = np.array(img)
 
-            # 1. Exposure
-            if p["exposure"] != 0:
-                img = self._apply_exposure(img, p["exposure"])
-                steps.append(f"exposure_{p['exposure']}")
+        # 1. Brightness (по умолчанию 20 для заметного эффекта)
+        use_brightness = brightness if brightness is not None else 20
+        if use_brightness != 0:
+            img_array = img_array.astype(np.float32)
+            img_array = img_array + use_brightness
+            img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+            steps.append(f"brightness_{use_brightness}")
 
-            # 2. Highlights, Shadows, Blacks
-            if p["highlights"] != 0 or p["shadows"] != 0 or p["blacks"] != 0:
-                img = self._apply_highlights_shadows(img, p["highlights"], p["shadows"], p["blacks"])
-                steps.append("highlights_shadows_blacks")
+        # 2. Contrast (по умолчанию 1.3)
+        use_contrast = contrast if contrast is not None else 1.3
+        if use_contrast != 1.0:
+            img_array = img_array.astype(np.float32)
+            img_array = ((img_array - 128) * use_contrast) + 128
+            img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+            steps.append(f"contrast_{use_contrast}")
 
-            # 3. Texture, Clarity, Dehaze
-            if p["texture"] != 0 or p["clarity"] != 0 or p["dehaze"] != 0:
-                img = self._apply_texture_clarity_dehaze(img, p["texture"], p["clarity"], p["dehaze"])
-                steps.append("texture_clarity_dehaze")
+        # 3. Saturation (по умолчанию 1.1)
+        use_saturation = saturation if saturation is not None else 1.1
+        if use_saturation != 1.0:
+            # Работаем с img напрямую
+            hsv = img.convert('HSV')
+            hsv_array = np.array(hsv)
+            # Умножаем S канал
+            hsv_array[:, :, 1] = np.clip(hsv_array[:, :, 1] * use_saturation, 0, 255).astype(np.uint8)
+            img = Image.fromarray(hsv_array).convert('RGB')
+            steps.append(f"saturation_{use_saturation}")
 
-            # 4. Color Grading (Temperature, Tint, Color)
-            if (p["temperature"] != 5500 or p["tint"] != 0 or
-                p["color_grading_highlights_hue"] != 0 or p["color_grading_midtones_hue"] != 0):
-                img = self._apply_color_grading(
-                    img,
-                    p["color_grading_highlights_hue"], p["color_grading_highlights_sat"],
-                    p["color_grading_midtones_hue"], p["color_grading_midtones_sat"],
-                    p["color_grading_shadows_hue"], p["color_grading_shadows_sat"],
-                    p["temperature"], p["tint"]
-                )
-                steps.append("color_grading")
+        # 4. Temperature (по умолчанию 6000 - тёплый винтаж)
+        use_temp = temperature if temperature is not None else 6000
+        if use_temp != 5500:
+            img_array = img_array.astype(np.float32)
+            temp_adjust = (use_temp - 5500) / 1000
+            img_array[:, :, 0] += temp_adjust * 20  # Red+
+            img_array[:, :, 2] -= temp_adjust * 15  # Blue-
+            img_array = np.clip(img_array, 0, 255)
+            img = Image.fromarray(img_array.astype(np.uint8))
+            steps.append(f"temperature_{use_temp}")
 
         # Generate output filename
         if output_filename is None:
