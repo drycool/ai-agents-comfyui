@@ -2,3 +2,9 @@
 requests>=2.31.0
 python-dotenv>=1.0.0
 pillow>=10.0.0
+
+# Web Interface
+streamlit>=1.28.0
+opencv-python>=4.8.0
+rawpy>=0.18.0
+streamlit>=1.28.0

@@ -11,7 +11,7 @@
 
 ## Commands
 
-### Запуск генерации
+### Запуск генерации изображений
 ```bash
 # Простой режим
 python launcher.py "a cat on sunset beach"
@@ -27,6 +27,15 @@ python launcher.py --status
 
 # Список моделей Ollama
 python launcher.py --list-models
+```
+
+### Запуск web-интерфейса
+```bash
+# Установить зависимости
+pip install streamlit opencv-python rawpy
+
+# Запустить web-интерфейс
+streamlit run app.py
 ```
 
 ### Требования окружения
@@ -49,6 +58,11 @@ python launcher.py --list-models
 
 Три режима генерации: simple, enhanced, full
 
+### Web Interface
+- `app.py` — Streamlit web-интерфейс для обработки фото
+- Запуск: `streamlit run app.py`
+- Поддержка одиночной и пакетной обработки
+
 ## Git
 
 - Ветки: feature/номер-описание
@@ -60,3 +74,16 @@ python launcher.py --list-models
 - COMFYUI_HOST, COMFYUI_PORT
 - OLLAMA_HOST, OLLAMA_DEFAULT_MODEL
 - OUTPUT_DIR, WORKFLOWS_DIR
+
+## Web Interface
+
+### Streamlit
+```bash
+# Установка зависимостей
+pip install streamlit
+
+# Запуск web-интерфейса
+streamlit run app.py
+```
+
+Web-интерфейс доступен по http://localhost:8501
