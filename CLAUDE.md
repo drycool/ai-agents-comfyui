@@ -78,6 +78,22 @@ run_app.bat
 - OLLAMA_HOST, OLLAMA_DEFAULT_MODEL
 - OUTPUT_DIR, WORKFLOWS_DIR
 
+## Python
+
+- Путь: `C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13`
+- Запуск: `python` или полный путь
+
+## Python
+
+Python 3.13: `C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13\python.exe`
+
+Команда для запуска:
+```bash
+"C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13\python.exe" script.py
+```
+
+Или добавить в PATH: `C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13\`
+
 ## Web Interface
 
 ### Streamlit
