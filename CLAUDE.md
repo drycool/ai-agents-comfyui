@@ -1,108 +1,122 @@
-# AI Agents System for ComfyUI
+# AI Instagram Automation System
 
-Система локальных AI-агентов для автоматизированной генерации изображений через ComfyUI.
+Система автоматизации обработки изображений для Instagram-магазинов винтажной одежды.
 
-## Project Overview
+## Два направления
 
-- **Основной скрипт**: `launcher.py` — точка входа в систему
-- **Оркестратор**: `orchestrator.py` — координирует Ollama, Claude, Gemini
-- **API клиент**: `comfy_client.py` — взаимодействие с ComfyUI
-- **CLI обёртки**: `cli_wrappers.py` — Ollama, Claude, Gemini wrappers
+| Направление | Статус | Описание |
+|-------------|--------|----------|
+| **Classic** | ✅ Готов | Классическая обработка без AI |
+| **AI Pipeline** | ⏸️ Незавершен | Полный AI-пайплайн |
 
-## Commands
+---
 
-### Запуск генерации изображений
-```bash
-# Простой режим
-python launcher.py "a cat on sunset beach"
+## Направление 1: Classic (ПОЛНОСТЬЮ РАБОЧЕЕ)
 
-# Улучшенный режим
-python launcher.py "cyberpunk city" --mode enhanced
+Классическая обработка фото без использования AI и ComfyUI.
 
-# Полный режим
-python launcher.py "abstract art" --mode full
+### Использование
 
-# Проверка статуса
-python launcher.py --status
+```python
+from instagram_processor import InstagramProcessor
 
-# Список моделей Ollama
-python launcher.py --list-models
+processor = InstagramProcessor()
+result = processor.process("photo.NEF")  # NEF, TIFF, JPG
+print(result["output_path"])
 ```
 
-### Запуск web-интерфейса
-```bash
-# Установить зависимости
-pip install -r requirements.txt
+### Возможности
 
-# Запустить web-интерфейс
+- Поддержка NEF (Nikon RAW), TIFF, JPG
+- Кадрирование 4:5 (2160x2700)
+- Тёплая цветокоррекция (vintage style)
+- Автоудаление артефактов
+- Выход: 2-3 MB, 80% качество
+- Время обработки: ~4 сек
+
+### Параметры
+
+| Параметр | Значение |
+|----------|----------|
+| Brightness | +10 |
+| Contrast | +15% |
+| Temperature | 5800K |
+| Качество | 80% |
+| Разрешение | 2160x2700 |
+
+---
+
+## Направление 2: AI Pipeline (НЕЗАВЕРШЕНО)
+
+```
+Ollama (анализ) → InstagramProcessor → ComfyUI → (описание)
+```
+
+### М Claude/Geminiодули
+
+- `ai_preset_selector.py` — AI-автоподбор пресета
+- `comfyui_enhancer.py` — AI-улучшение
+- `product_desc_generator.py` — генерация описаний
+- `ai_pipeline.py` — объединяющий пайплайн
+
+### Требования
+
+- ComfyUI на http://localhost:8188
+- Ollama с llama3.2/llama3.3
+
+⏸️ Требует доработки и интеграции.
+
+---
+
+## Структура проекта
+
+```
+├── instagram_processor.py    # ✅ Classic processor
+├── vintage_processor.py     # ✅ Legacy processor
+├── ai_pipeline.py           # ⏸️ Full AI pipeline
+├── ai_preset_selector.py    # ⏸️ AI preset selection
+├── comfyui_enhancer.py      # ⏸️ ComfyUI enhancement
+├── product_desc_generator.py# ⏸️ Description generation
+├── app.py                    # Streamlit web-интерфейс
+└── output/instagram/        # Результаты
+```
+
+---
+
+## Запуск
+
+### Classic (рекомендуется)
+
+```python
+from instagram_processor import InstagramProcessor
+
+processor = InstagramProcessor()
+result = processor.process("input/photo.NEF")
+```
+
+### Web-интерфейс
+
+```bash
 streamlit run app.py
-
-# Или использовать батник
-run_app.bat
 ```
 
-### Требования окружения
-- ComfyUI запущен на http://localhost:8188
-- Ollama с моделями llama3.2/llama3.3
-- Claude CLI и Gemini CLI установлены
+---
 
-## Code Style
+## Период работы
 
-- Python 3.10+
-- Аннотации типов для функций и переменных
-- docstrings для всех функций и классов
-- Форматирование: black
+**Завершение активной разработки:** 2026-03-04
 
-## Architecture
+Classic-режим полностью рабочий. AI Pipeline требует дополнительной интеграции.
 
-```
-Пользователь → Ollama (анализ) → Gemini (стиль) → Claude (промпт) → ComfyUI → Изображение
-```
+---
 
-Три режима генерации: simple, enhanced, full
+## Python
 
-### Web Interface
-- `app.py` — Streamlit web-интерфейс для обработки фото
-- Запуск: `streamlit run app.py`
-- Поддержка одиночной и пакетной обработки
-
-## Git
-
-- Ветки: feature/номер-описание
-- Коммиты: глагол(область): описание
+Python 3.13: `C:\Users\369\AppData\Local\Programs\Python\Python313\python.exe`
 
 ## Environment
 
-Переменные в .env:
+Переменные в `.env`:
+- OUTPUT_DIR
 - COMFYUI_HOST, COMFYUI_PORT
-- OLLAMA_HOST, OLLAMA_DEFAULT_MODEL
-- OUTPUT_DIR, WORKFLOWS_DIR
-
-## Python
-
-- Путь: `C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13`
-- Запуск: `python` или полный путь
-
-## Python
-
-Python 3.13: `C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13\python.exe`
-
-Команда для запуска:
-```bash
-"C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13\python.exe" script.py
-```
-
-Или добавить в PATH: `C:\Users\369\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Python 3.13\`
-
-## Web Interface
-
-### Streamlit
-```bash
-# Установка зависимостей
-pip install streamlit
-
-# Запуск web-интерфейса
-streamlit run app.py
-```
-
-Web-интерфейс доступен по http://localhost:8501
+- OLLAMA_HOST
